@@ -6,6 +6,10 @@ import logging
 import random
 
 from aiogram import Bot, Dispatcher, executor, types
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher import FSMContext
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.types import ChatType, ParseMode, ContentTypes
 from apiclient.discovery import build
 from apiclient.errors import HttpError
 from bot_info import API_TOKEN, DEVELOPER_KEY
@@ -20,10 +24,20 @@ logging.basicConfig(level=logging.INFO)
 
 # Initialize bot and dispatcher
 bot = Bot(token=API_TOKEN)
-dp = Dispatcher(bot)
+
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
 
 youtube = build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION,
-    developerKey=DEVELOPER_KEY) 
+    developerKey=DEVELOPER_KEY)
+
+BAD_CONTENT = ContentTypes.PHOTO & ContentTypes.DOCUMENT & ContentTypes.STICKER & ContentTypes.AUDIO
+
+#Photo sending states
+class PhotoUpload(StatesGroup):
+	started = State()
+	sent = State()
+	processed = State()     
 
 @dp.message_handler(commands=['miichannel'])
 async def mii_channel_video_selector(message: types.Message):
@@ -35,9 +49,21 @@ async def bill_wurtz_video_selector(message: types.Message):
 	video_url = select_random_video_by_channel(BILL_CHANNEL)
 	await bot.send_message(message.chat.id, video_url)
 
-@dp.message_handler()
-async def echo(message: types.Message):
-    await bot.send_message(message.chat.id, message.text)
+@dp.message_handler(commands=['deepfry'])
+async def deepfry_start(message: types.Message):
+	await PhotoUpload.started.set()
+	await bot.send_message(message.chat.id, "Send a photo to be deep fried")	
+
+@dp.message_handler(content_types=ContentTypes.PHOTO, state=PhotoUpload.started)
+async def deepfry_wait_photo(message: types.Message):
+	await PhotoUpload.next()
+	res = await deepfry_photo(message.photo)
+	await bot.send_photo(message.chat.id, res)
+
+async def deepfry_photo(photo):
+	downloaded = await bot.download_file_by_id(photo[0].file_id)
+	print (downloaded)
+	return downloaded
 
 def select_random_video_by_keyword(keyword):
 	videos = youtube.search().list(q=keyword,
