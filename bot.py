@@ -12,7 +12,7 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ChatType, ParseMode, ContentTypes
 from apiclient.discovery import build
 from apiclient.errors import HttpError
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter, ImageChops
 from io import BytesIO
 from bot_info import API_TOKEN, DEVELOPER_KEY
 
@@ -65,11 +65,23 @@ async def deepfry_wait_photo(message: types.Message):
 
 async def deepfry_photo(photo):
 	downloaded = await bot.download_file_by_id(photo[-1].file_id)
-	im = Image.open(downloaded)
-	print(im.format, im.size, im.mode)
-	im = im.transpose(Image.ROTATE_180)
+	og = Image.open(downloaded)
+	im = og	
+
+	im = im.filter(ImageFilter.EMBOSS)
+	
+	contrast = ImageEnhance.Contrast(im)
+	im = contrast.enhance(1.3)
+
+	sharp = ImageEnhance.Sharpness(im)
+	im = sharp.enhance(1.5)
+
 	b = BytesIO()
-	im.save(b, "JPEG")
+	for i in range(1,1000):
+		im.save(b, "JPEG")
+		im = Image.open(b)
+	im.save(b, "JPEG")	
+
 	b.seek(0)
 	return b
 
