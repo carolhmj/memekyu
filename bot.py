@@ -12,6 +12,8 @@ from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ChatType, ParseMode, ContentTypes
 from apiclient.discovery import build
 from apiclient.errors import HttpError
+from PIL import Image
+from io import BytesIO
 from bot_info import API_TOKEN, DEVELOPER_KEY
 
 YOUTUBE_API_SERVICE_NAME = 'youtube'
@@ -54,16 +56,22 @@ async def deepfry_start(message: types.Message):
 	await PhotoUpload.started.set()
 	await bot.send_message(message.chat.id, "Send a photo to be deep fried")	
 
-@dp.message_handler(content_types=ContentTypes.PHOTO, state=PhotoUpload.started)
+# @dp.message_handler(content_types=ContentTypes.PHOTO, state=PhotoUpload.started)
+@dp.message_handler(content_types=ContentTypes.PHOTO, state="*")
 async def deepfry_wait_photo(message: types.Message):
-	await PhotoUpload.next()
+	# await PhotoUpload.next()
 	res = await deepfry_photo(message.photo)
-	await bot.send_photo(message.chat.id, res)
+	await bot.send_photo(message.chat.id, res)	
 
 async def deepfry_photo(photo):
-	downloaded = await bot.download_file_by_id(photo[0].file_id)
-	print (downloaded)
-	return downloaded
+	downloaded = await bot.download_file_by_id(photo[-1].file_id)
+	im = Image.open(downloaded)
+	print(im.format, im.size, im.mode)
+	im = im.transpose(Image.ROTATE_180)
+	b = BytesIO()
+	im.save(b, "JPEG")
+	b.seek(0)
+	return b
 
 def select_random_video_by_keyword(keyword):
 	videos = youtube.search().list(q=keyword,
